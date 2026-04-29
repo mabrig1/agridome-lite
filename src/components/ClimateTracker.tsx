@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { storage, ClimateLog } from '@/lib/storage'
 import { formatDate, formatTime } from '@/lib/utils'
-import { Plus, Trash2, Thermometer, Droplets, Wind, Sun } from 'lucide-react'
+import { getClimateAdvice, ClimateAdvice } from '@/lib/climateAdvice'
+import { Plus, Trash2, Thermometer, Droplets, Wind, Sun, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 function generateId() {
@@ -41,6 +42,100 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
+// ── Advice Strip ────────────────────────────────────────────────────────────
+const LEVEL_STYLES = {
+  optimal: {
+    wrap:   'border-emerald-600/40 bg-emerald-500/8',
+    icon:   'text-emerald-400',
+    title:  'text-emerald-300',
+    msg:    'text-emerald-200/80',
+    action: 'text-emerald-300/70',
+    dot:    'bg-emerald-400',
+    pulse:  false,
+  },
+  warning: {
+    wrap:   'border-amber-600/40 bg-amber-500/8',
+    icon:   'text-amber-400',
+    title:  'text-amber-300',
+    msg:    'text-amber-200/80',
+    action: 'text-amber-300/70',
+    dot:    'bg-amber-400',
+    pulse:  false,
+  },
+  danger: {
+    wrap:   'border-red-600/50 bg-red-500/10',
+    icon:   'text-red-400',
+    title:  'text-red-300',
+    msg:    'text-red-200/80',
+    action: 'text-red-300/70',
+    dot:    'bg-red-400',
+    pulse:  true,
+  },
+} as const
+
+function AdviceIcon({ level }: { level: ClimateAdvice['level'] }) {
+  if (level === 'optimal') return <CheckCircle2 className="w-5 h-5" />
+  if (level === 'danger')  return <ShieldAlert   className="w-5 h-5" />
+  return <AlertTriangle className="w-5 h-5" />
+}
+
+function AdviceStrip({ temp, humidity }: { temp: number; humidity: number }) {
+  const [open, setOpen] = useState(false)
+  const advice  = getClimateAdvice(temp, humidity)
+  const styles  = LEVEL_STYLES[advice.level]
+
+  return (
+    <div className={cn('rounded-xl border p-4 space-y-2', styles.wrap)}>
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          {/* Pulsing indicator dot for danger */}
+          <div className="relative flex-shrink-0 mt-0.5">
+            <div className={cn('w-5 h-5 flex items-center justify-center', styles.icon)}>
+              <AdviceIcon level={advice.level} />
+            </div>
+            {styles.pulse && (
+              <span className={cn(
+                'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full animate-pulse',
+                styles.dot
+              )} />
+            )}
+          </div>
+          <div>
+            <p className={cn('text-sm font-semibold leading-tight', styles.title)}>
+              {advice.title}
+            </p>
+            <p className={cn('text-xs mt-0.5 leading-relaxed', styles.msg)}>
+              {advice.message}
+            </p>
+          </div>
+        </div>
+        {/* Expand toggle */}
+        <button
+          onClick={() => setOpen(o => !o)}
+          className={cn('flex-shrink-0 mt-0.5', styles.icon)}
+          aria-label={open ? 'Hide actions' : 'Show actions'}
+        >
+          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* Collapsible action list */}
+      {open && (
+        <ul className="space-y-1.5 pl-7 pt-1">
+          {advice.actions.map((action, i) => (
+            <li key={i} className={cn('text-xs flex items-start gap-1.5', styles.action)}>
+              <span className="mt-1.5 w-1 h-1 rounded-full bg-current flex-shrink-0" />
+              {action}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function ClimateTracker() {
   const [logs, setLogs] = useState<ClimateLog[]>([])
   const [showForm, setShowForm] = useState(false)
@@ -59,7 +154,7 @@ export default function ClimateTracker() {
 
   const handleSubmit = useCallback(() => {
     const temp = parseFloat(form.temperature)
-    const hum = parseFloat(form.humidity)
+    const hum  = parseFloat(form.humidity)
     if (isNaN(temp) || isNaN(hum)) return
     const log: ClimateLog = {
       id: generateId(),
@@ -156,6 +251,11 @@ export default function ClimateTracker() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Advice strip — shown whenever there is a reading */}
+      {latest && (
+        <AdviceStrip temp={latest.temperature} humidity={latest.humidity} />
       )}
 
       {!latest && (
