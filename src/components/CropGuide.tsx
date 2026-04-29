@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils'
-import { ChevronRight, ChevronLeft, CheckCircle2, Circle, Thermometer, Droplets, Calendar } from 'lucide-react'
+import { ChevronRight, ChevronLeft, CheckCircle2, Thermometer, Droplets, Calendar } from 'lucide-react'
+import WateringSchedule from '@/components/WateringSchedule'
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -50,12 +51,11 @@ export default function CropGuide() {
   }
 
   const resetStage = (cropId: string) => {
-    const stages = cropStages.filter(s => s.cropId !== cropId)
-    // Directly update storage by saving with empty cropId filter
     storage.saveCropStage({ id: generateId(), cropId, plantedDate: new Date().toISOString(), currentStage: 0, updatedAt: new Date().toISOString() })
     setCropStages(storage.getCropStages())
   }
 
+  // ── Crop detail view ──────────────────────────────────────────
   if (selectedCrop) {
     const tracking = getStageForCrop(selectedCrop.id)
     const currentStageIdx = tracking?.currentStage ?? 0
@@ -103,7 +103,7 @@ export default function CropGuide() {
 
         <p className="text-sm text-muted-foreground">{selectedCrop.description}</p>
 
-        {/* Growth stage progress */}
+        {/* Growth stages */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Growth Stages</CardTitle>
@@ -114,9 +114,8 @@ export default function CropGuide() {
             )}
           </CardHeader>
           <CardContent>
-            {/* Stage timeline */}
             <div className="flex gap-1 mb-4">
-              {selectedCrop.stages.map((stage, i) => (
+              {selectedCrop.stages.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveStageIndex(i)}
@@ -130,7 +129,6 @@ export default function CropGuide() {
               ))}
             </div>
 
-            {/* Stage selector */}
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => setActiveStageIndex(i => Math.max(0, i - 1))}
@@ -163,7 +161,6 @@ export default function CropGuide() {
               ))}
             </div>
 
-            {/* Tracking controls */}
             <div className="mt-4 space-y-2">
               {!isTracking ? (
                 <Button onClick={() => startTracking(selectedCrop)} variant="gold" className="w-full">
@@ -222,11 +219,12 @@ export default function CropGuide() {
     )
   }
 
+  // ── Crop list view ────────────────────────────────────────────
   return (
     <div className="p-4 space-y-4">
       <div>
         <h2 className="font-serif text-xl font-semibold">Crop Guide</h2>
-        <p className="text-sm text-muted-foreground mt-1">6 greenhouse crops optimised for Nigerian conditions</p>
+        <p className="text-sm text-muted-foreground mt-1">{CROPS.length} greenhouse crops optimised for Nigerian conditions</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3">
@@ -282,6 +280,9 @@ export default function CropGuide() {
           )
         })}
       </div>
+
+      {/* Watering schedule sits below the crop selector */}
+      <WateringSchedule />
     </div>
   )
 }
