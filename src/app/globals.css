@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Instrument+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 153 60% 5%;
+    --foreground: 60 30% 92%;
+    --card: 153 45% 8%;
+    --card-foreground: 60 30% 92%;
+    --popover: 153 45% 8%;
+    --popover-foreground: 60 30% 92%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 153 60% 5%;
+    --secondary: 153 35% 14%;
+    --secondary-foreground: 60 20% 80%;
+    --muted: 153 30% 12%;
+    --muted-foreground: 153 15% 55%;
+    --accent: 153 35% 18%;
+    --accent-foreground: 43 96% 70%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 153 30% 16%;
+    --input: 153 30% 16%;
+    --ring: 43 96% 56%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
+
+@layer utilities {
+  .grain-overlay {
+    position: relative;
+  }
+  .grain-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+  }
+
+  .text-gold {
+    color: hsl(43 96% 56%);
+  }
+
+  .bg-forest-deep {
+    background-color: hsl(153 60% 5%);
+  }
+
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+}
