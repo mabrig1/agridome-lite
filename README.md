@@ -12,6 +12,16 @@ A Progressive Web App (PWA) for Nigerian smallholder greenhouse farmers, built w
 | **Yield Predictor** | Area/plant-count based yield and revenue calculator |
 | **AI Advisor** | Claude-powered chat with Nigerian farming context, 4 languages |
 | **Offline Mode** | All data stored in localStorage, works without internet |
+| **Pilot Evidence** | Consent, pseudonymous baseline, weekly outcomes, progress metrics and CSV export |
+
+## Farmer Pilot
+
+AgriDome now includes an offline evidence module for a small, supervised farmer pilot. It records consent, a one-time baseline and weekly harvest, income, cost, pest-loss and usage outcomes. Data remains on the participant's device until they choose to export a CSV, and participants can withdraw and delete all pilot records.
+
+- [Pilot protocol](docs/PILOT_PROTOCOL.md)
+- [Grant concept note](docs/GRANT_CONCEPT_NOTE.md)
+
+The pilot materials are an operational starting point, not an ethics approval or proof of impact. A qualified research institution and agriculture extension partner should review the study before recruitment.
 
 ## Tech Stack
 
