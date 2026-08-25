@@ -11,6 +11,7 @@ import {
   PilotWeeklyOutcome,
   storage,
 } from '@/lib/storage'
+import { downloadPilotCsv, downloadPilotJson } from '@/lib/pilotExport'
 
 type BaselineFormState = {
   crop: string
@@ -50,29 +51,6 @@ function makeParticipantCode() {
 function numberOrZero(value: string) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
-}
-
-function downloadCsv(profile: PilotProfile, baseline: PilotBaseline | null, outcomes: PilotWeeklyOutcome[]) {
-  const headers = [
-    'participant_code', 'week_start', 'crop', 'harvest_kg', 'income_ngn',
-    'costs_ngn', 'pest_loss_percent', 'app_used_days', 'notes',
-  ]
-  const escape = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`
-  const rows = outcomes.map(item => [
-    profile.participantCode, item.weekStart, item.crop, item.harvestKg, item.incomeNgn,
-    item.costsNgn, item.pestLossPercent, item.appUsedDays, item.notes ?? '',
-  ].map(escape).join(','))
-
-  const metadata = baseline
-    ? `# baseline_crop=${baseline.crop};area_sqm=${baseline.areaSqm};weekly_harvest_kg=${baseline.weeklyHarvestKg};weekly_income_ngn=${baseline.weeklyIncomeNgn};pest_loss_percent=${baseline.pestLossPercent}\n`
-    : ''
-  const blob = new Blob([metadata, headers.join(','), '\n', rows.join('\n')], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `agridome-pilot-${profile.participantCode}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 export default function PilotTracker() {
@@ -218,9 +196,14 @@ export default function PilotTracker() {
             <p className="font-mono text-gold font-semibold">{profile.participantCode}</p>
             <p className="text-xs text-muted-foreground">{profile.location}</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => downloadCsv(profile, baseline, outcomes)} disabled={!outcomes.length} className="gap-2">
-            <Download className="w-4 h-4" /> Export CSV
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button size="sm" variant="outline" onClick={() => downloadPilotJson(profile, baseline, outcomes)} disabled={!baseline && !outcomes.length} className="gap-2">
+              <Download className="w-4 h-4" /> Pilot file
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => downloadPilotCsv(profile, baseline, outcomes)} disabled={!outcomes.length} className="gap-2 text-xs">
+              CSV copy
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
