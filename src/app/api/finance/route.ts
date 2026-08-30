@@ -13,6 +13,21 @@ function summarize(logs: any[]) {
   return { expenses, revenue, netProfit, marginPercent }
 }
 
+function summarizeByCrop(farm: any) {
+  return (farm.crops ?? []).map((crop: any) => {
+    const cropId = String(crop._id)
+    const cropLogs = (farm.financialLogs ?? []).filter((log: any) => log.cropId && String(log.cropId) === cropId)
+    return {
+      cropId,
+      cropType: crop.cropType,
+      variety: crop.variety,
+      plotLabel: crop.plotLabel,
+      plotSizeAcres: crop.plotSizeAcres,
+      ...summarize(cropLogs),
+    }
+  })
+}
+
 export async function GET(request: NextRequest) {
   const userId = getRequestUserId(request)
   if (!userId) return unauthorizedIdentityResponse()
@@ -24,7 +39,11 @@ export async function GET(request: NextRequest) {
   const farm: any = await Farm.findOne({ _id: farmId, userId }).lean()
   if (!farm) return Response.json({ error: 'Farm not found.' }, { status: 404 })
 
-  return Response.json({ logs: farm.financialLogs ?? [], summary: summarize(farm.financialLogs ?? []) })
+  return Response.json({
+    logs: farm.financialLogs ?? [],
+    summary: summarize(farm.financialLogs ?? []),
+    byCrop: summarizeByCrop(farm),
+  })
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +72,11 @@ export async function POST(request: NextRequest) {
   await farm.save()
 
   return Response.json(
-    { log: farm.financialLogs[farm.financialLogs.length - 1], summary: summarize(farm.financialLogs) },
+    {
+      log: farm.financialLogs[farm.financialLogs.length - 1],
+      summary: summarize(farm.financialLogs),
+      byCrop: summarizeByCrop(farm),
+    },
     { status: 201 }
   )
 }
@@ -75,7 +98,13 @@ export async function PATCH(request: NextRequest) {
 
   const clientUpdatedAt = new Date(updatedAt ?? patch?.updatedAt ?? Date.now())
   if (log.updatedAt && new Date(log.updatedAt).getTime() > clientUpdatedAt.getTime()) {
-    return Response.json({ log, conflict: 'server_newer', applied: false, summary: summarize(farm.financialLogs) })
+    return Response.json({
+      log,
+      conflict: 'server_newer',
+      applied: false,
+      summary: summarize(farm.financialLogs),
+      byCrop: summarizeByCrop(farm),
+    })
   }
 
   for (const key of ['type', 'category', 'amount', 'date', 'description', 'cropId']) {
@@ -84,5 +113,10 @@ export async function PATCH(request: NextRequest) {
   log.updatedAt = clientUpdatedAt
   await farm.save()
 
-  return Response.json({ log, applied: true, summary: summarize(farm.financialLogs) })
+  return Response.json({
+    log,
+    applied: true,
+    summary: summarize(farm.financialLogs),
+    byCrop: summarizeByCrop(farm),
+  })
 }
