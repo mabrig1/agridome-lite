@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Download, LogOut, RefreshCw, Sprout, TrendingDown, TrendingUp, WalletCards } from 'lucide-react'
+import FarmEntryPanel from '@/components/FarmEntryPanel'
 import PhoneAuthPanel from '@/components/PhoneAuthPanel'
+import { cacheCloudFarms } from '@/lib/farmStore'
 import { exportFinanceCsv, exportFinancePdf } from '@/lib/financialExport'
-import { getPendingSyncCount, installConnectivitySync, syncPendingChanges } from '@/lib/offlineDb'
+import { getCachedFarms, getPendingSyncCount, installConnectivitySync, syncPendingChanges } from '@/lib/offlineDb'
 import { t, type SupportedLanguage } from '@/lib/i18n'
 
 interface SessionUser {
@@ -17,16 +19,34 @@ interface SessionUser {
   subscription?: { tier?: 'free' | 'pro'; status?: string }
 }
 
+interface FarmCrop {
+  _id: string
+  cropType: string
+  status: string
+  plotLabel?: string
+}
+
+interface FarmLog {
+  _id?: string
+  type: 'Expense' | 'Revenue'
+  category: string
+  amount: number
+  date: string
+  description?: string
+  cropId?: string | null
+}
+
 interface Farm {
   _id: string
   name: string
   totalSizeAcres: number
   location: { region: string }
-  crops: Array<{ _id: string; cropType: string; status: string }>
+  crops: FarmCrop[]
+  financialLogs?: FarmLog[]
 }
 
 interface FinancePayload {
-  logs: Array<{ type: 'Expense' | 'Revenue'; category: string; amount: number; date: string; description?: string }>
+  logs: FarmLog[]
   summary: { expenses: number; revenue: number; netProfit: number; marginPercent: number }
   byCrop: Array<{ cropId: string; cropType: string; plotLabel?: string; revenue: number; expenses: number; netProfit: number; marginPercent: number }>
 }
@@ -47,6 +67,26 @@ const emptyFinance: FinancePayload = {
   logs: [],
   summary: { expenses: 0, revenue: 0, netProfit: 0, marginPercent: 0 },
   byCrop: [],
+}
+
+function summarizeLogs(logs: FarmLog[]) {
+  const expenses = logs.filter(log => log.type === 'Expense').reduce((sum, log) => sum + Number(log.amount || 0), 0)
+  const revenue = logs.filter(log => log.type === 'Revenue').reduce((sum, log) => sum + Number(log.amount || 0), 0)
+  const netProfit = revenue - expenses
+  return { expenses, revenue, netProfit, marginPercent: revenue > 0 ? (netProfit / revenue) * 100 : 0 }
+}
+
+function localFinance(farm: Farm | null): FinancePayload {
+  if (!farm) return emptyFinance
+  const logs = farm.financialLogs ?? []
+  return {
+    logs,
+    summary: summarizeLogs(logs),
+    byCrop: (farm.crops ?? []).map(crop => {
+      const cropLogs = logs.filter(log => log.cropId && String(log.cropId) === crop._id)
+      return { cropId: crop._id, cropType: crop.cropType, plotLabel: crop.plotLabel, ...summarizeLogs(cropLogs) }
+    }),
+  }
 }
 
 export default function FarmOperationsDashboard() {
@@ -88,8 +128,23 @@ export default function FarmOperationsDashboard() {
     setPendingSync(await getPendingSyncCount())
   }, [])
 
+  const loadCachedData = useCallback(async () => {
+    if (!user?.id) return
+    const cached = await getCachedFarms(user.id)
+    const nextFarms = cached.map(record => record.payload as unknown as Farm)
+    setFarms(nextFarms)
+    if (nextFarms.length && !nextFarms.some(farm => farm._id === selectedFarmId)) {
+      setSelectedFarmId(nextFarms[0]._id)
+    }
+  }, [selectedFarmId, user?.id])
+
   const loadCloudData = useCallback(async () => {
-    if (!user?.id || !navigator.onLine) return
+    if (!user?.id) return
+    if (!navigator.onLine) {
+      await loadCachedData()
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
@@ -102,16 +157,30 @@ export default function FarmOperationsDashboard() {
       const farmsPayload = await farmsResponse.json()
       const nextFarms: Farm[] = farmsPayload.farms ?? []
       setFarms(nextFarms)
-      if (!selectedFarmId && nextFarms[0]?._id) setSelectedFarmId(nextFarms[0]._id)
+      await cacheCloudFarms(user.id, nextFarms as unknown as Array<Record<string, any>>)
+      if (nextFarms.length && !nextFarms.some(farm => farm._id === selectedFarmId)) {
+        setSelectedFarmId(nextFarms[0]._id)
+      }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load cloud data')
+      await loadCachedData()
+      setError(loadError instanceof Error ? `${loadError.message}. Showing saved device data.` : 'Showing saved device data.')
     } finally {
       setLoading(false)
     }
-  }, [selectedFarmId, user?.id])
+  }, [loadCachedData, selectedFarmId, user?.id])
 
   const loadFarmIntelligence = useCallback(async () => {
-    if (!user?.id || !selectedFarm?._id || !navigator.onLine) return
+    if (!user?.id || !selectedFarm?._id) {
+      setFinance(emptyFinance)
+      return
+    }
+
+    if (!navigator.onLine) {
+      setFinance(localFinance(selectedFarm))
+      setWeather(null)
+      return
+    }
+
     const farmId = selectedFarm._id
     const [financeResponse, weatherResponse, supplierResponse] = await Promise.all([
       fetch(`/api/finance?farmId=${encodeURIComponent(farmId)}`, { cache: 'no-store' }),
@@ -120,6 +189,7 @@ export default function FarmOperationsDashboard() {
     ])
 
     if (financeResponse.ok) setFinance(await financeResponse.json())
+    else setFinance(localFinance(selectedFarm))
     if (weatherResponse.ok) setWeather(await weatherResponse.json())
     if (supplierResponse.ok) setSuppliers((await supplierResponse.json()).offers ?? [])
   }, [selectedFarm, user?.id])
@@ -141,22 +211,31 @@ export default function FarmOperationsDashboard() {
 
   useEffect(() => {
     if (!user?.id) return
-    const uninstallSync = installConnectivitySync(() => void refreshSyncCount())
+    const uninstallSync = installConnectivitySync(() => {
+      void refreshSyncCount()
+      void loadCloudData()
+    })
     return uninstallSync
-  }, [refreshSyncCount, user?.id])
+  }, [loadCloudData, refreshSyncCount, user?.id])
 
   useEffect(() => {
     void loadCloudData()
-  }, [loadCloudData])
+  }, [isOnline, loadCloudData])
 
   useEffect(() => {
     void loadFarmIntelligence()
-  }, [loadFarmIntelligence])
+  }, [isOnline, loadFarmIntelligence])
 
   async function handleManualSync() {
     await syncPendingChanges()
     await refreshSyncCount()
     await loadCloudData()
+  }
+
+  async function handleEntryChanged() {
+    await loadCachedData()
+    await refreshSyncCount()
+    if (navigator.onLine) await loadCloudData()
   }
 
   async function handleUpgrade() {
@@ -214,6 +293,14 @@ export default function FarmOperationsDashboard() {
               </select>
             ) : null}
 
+            <FarmEntryPanel
+              userId={user.id}
+              farms={farms}
+              selectedFarmId={selectedFarm?._id ?? ''}
+              tier={user.subscription?.tier ?? 'free'}
+              onChanged={handleEntryChanged}
+            />
+
             <div className="grid grid-cols-2 gap-3">
               <Metric icon={TrendingUp} label={t(language, 'revenue')} value={finance.summary.revenue} />
               <Metric icon={TrendingDown} label={t(language, 'expenses')} value={finance.summary.expenses} />
@@ -225,7 +312,7 @@ export default function FarmOperationsDashboard() {
               <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{t(language, 'weatherAdvice')}</h3>{loading ? <span className="text-xs text-muted-foreground">Loading…</span> : null}</div>
               <div className="mt-3 space-y-2">
                 {(weather?.advice ?? []).map(item => <div key={item.code} className="rounded-lg bg-muted/50 p-3 text-sm">{item.message}</div>)}
-                {!weather?.advice?.length ? <p className="text-sm text-muted-foreground">Weather advice will appear after you add a farm with location coordinates.</p> : null}
+                {!weather?.advice?.length ? <p className="text-sm text-muted-foreground">{isOnline ? 'Weather advice will appear after you add a farm with location coordinates.' : 'Weather advice refreshes when connectivity returns.'}</p> : null}
               </div>
             </div>
 
