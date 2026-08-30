@@ -2,6 +2,7 @@ import { Types } from 'mongoose'
 import { NextRequest } from 'next/server'
 import dbConnect from '@/lib/dbConnect'
 import { getRequestUserId, unauthorizedIdentityResponse } from '@/lib/requestUser'
+import Cooperative from '@/models/Cooperative'
 import User from '@/models/User'
 import Farm from '@/models/Farm'
 
@@ -18,7 +19,9 @@ export async function GET(request: NextRequest) {
   }
 
   const cooperativeId = new Types.ObjectId(user.cooperativeId)
-  const [summary, cropMix, inputTasks] = await Promise.all([
+  const [cooperative, memberCount, summary, financeSummary, cropMix, inputTasks] = await Promise.all([
+    Cooperative.findById(cooperativeId).lean(),
+    User.countDocuments({ cooperativeId }),
     Farm.aggregate([
       { $match: { cooperativeId } },
       {
@@ -27,6 +30,25 @@ export async function GET(request: NextRequest) {
           farms: { $sum: 1 },
           totalAcreage: { $sum: '$totalSizeAcres' },
           projectedHarvestKg: { $sum: { $sum: '$crops.expectedYieldKg' } },
+        },
+      },
+    ]),
+    Farm.aggregate([
+      { $match: { cooperativeId } },
+      { $unwind: { path: '$financialLogs', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: null,
+          revenue: {
+            $sum: {
+              $cond: [{ $eq: ['$financialLogs.type', 'Revenue'] }, { $ifNull: ['$financialLogs.amount', 0] }, 0],
+            },
+          },
+          expenses: {
+            $sum: {
+              $cond: [{ $eq: ['$financialLogs.type', 'Expense'] }, { $ifNull: ['$financialLogs.amount', 0] }, 0],
+            },
+          },
         },
       },
     ]),
@@ -54,9 +76,23 @@ export async function GET(request: NextRequest) {
     ]),
   ])
 
+  const production = summary[0] ?? { farms: 0, totalAcreage: 0, projectedHarvestKg: 0 }
+  const finance = financeSummary[0] ?? { revenue: 0, expenses: 0 }
+
   return Response.json({
     cooperativeId: String(user.cooperativeId),
-    summary: summary[0] ?? { farms: 0, totalAcreage: 0, projectedHarvestKg: 0 },
+    cooperative: {
+      name: (cooperative as any)?.name ?? 'Cooperative',
+      region: (cooperative as any)?.region ?? '',
+      subscriptionStatus: (cooperative as any)?.subscriptionStatus ?? 'inactive',
+    },
+    summary: {
+      members: memberCount,
+      ...production,
+      revenue: finance.revenue,
+      expenses: finance.expenses,
+      netProfit: finance.revenue - finance.expenses,
+    },
     cropMix,
     inputRequirements: inputTasks,
   })
