@@ -15,10 +15,13 @@ export async function POST(
   if (!userId) return unauthorizedIdentityResponse()
 
   const body = await request.json()
-  const { cropType, variety, plantingDate, expectedHarvestDate, expectedYieldKg, status, plotLabel, plotSizeAcres, updatedAt } = body
+  const { id: cropId, cropType, variety, plantingDate, expectedHarvestDate, expectedYieldKg, status, plotLabel, plotSizeAcres, updatedAt } = body
 
   if (!cropType || !plantingDate || !expectedHarvestDate) {
     return Response.json({ error: 'cropType, plantingDate and expectedHarvestDate are required.' }, { status: 400 })
+  }
+  if (cropId && !Types.ObjectId.isValid(cropId)) {
+    return Response.json({ error: 'Invalid client crop id.' }, { status: 400 })
   }
 
   await dbConnect()
@@ -35,6 +38,11 @@ export async function POST(
 
   if (!farm) return Response.json({ error: 'Farm not found.' }, { status: 404 })
 
+  if (cropId) {
+    const existing: any = (farm as any).crops.id(cropId)
+    if (existing) return Response.json({ farm, crop: existing, replayed: true })
+  }
+
   const user = userResult as any
   const tier = user?.subscription?.tier ?? 'free'
   const activeCount = activePlotCount[0]?.count ?? 0
@@ -46,7 +54,8 @@ export async function POST(
     )
   }
 
-  farm.crops.push({
+  ;(farm as any).crops.push({
+    ...(cropId ? { _id: new Types.ObjectId(cropId) } : {}),
     cropType: String(cropType).trim(),
     variety: String(variety ?? '').trim(),
     plantingDate: new Date(plantingDate),
@@ -59,7 +68,7 @@ export async function POST(
   })
   await farm.save()
 
-  return Response.json({ farm, crop: farm.crops[farm.crops.length - 1] }, { status: 201 })
+  return Response.json({ farm, crop: (farm as any).crops[(farm as any).crops.length - 1] }, { status: 201 })
 }
 
 export async function PATCH(
@@ -83,7 +92,6 @@ export async function PATCH(
   const clientUpdatedAt = new Date(updatedAt ?? patch?.updatedAt ?? taskPatch?.updatedAt ?? Date.now())
   const targetUpdatedAt = taskId ? crop.tasks.id(taskId)?.updatedAt : crop.updatedAt
 
-  // Offline conflict policy: newer mutation wins; stale queued mutations are acknowledged but ignored.
   if (targetUpdatedAt && new Date(targetUpdatedAt).getTime() > clientUpdatedAt.getTime()) {
     return Response.json({ farm, conflict: 'server_newer', applied: false })
   }
