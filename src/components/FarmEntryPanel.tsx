@@ -1,13 +1,20 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { Banknote, MapPin, Plus, Sprout, X } from 'lucide-react'
+import { Banknote, Mail, MapPin, Plus, Sprout, X } from 'lucide-react'
+import ProfileBillingCard from '@/components/ProfileBillingCard'
 import { addCropOfflineFirst, createFarmOfflineFirst, logFinanceOfflineFirst } from '@/lib/farmStore'
 
 interface FarmOption {
   _id: string
   name: string
   crops?: Array<{ status?: string }>
+}
+
+interface ProfileData {
+  name: string
+  email?: string | null
+  preferredLanguage: 'en' | 'ha' | 'sw' | 'fr'
 }
 
 interface Props {
@@ -19,7 +26,8 @@ interface Props {
 }
 
 export default function FarmEntryPanel({ userId, farms, selectedFarmId, tier, onChanged }: Props) {
-  const [mode, setMode] = useState<'farm' | 'crop' | 'finance' | null>(farms.length ? null : 'farm')
+  const [mode, setMode] = useState<'farm' | 'crop' | 'finance' | 'profile' | null>(farms.length ? null : 'farm')
+  const [profile, setProfile] = useState<ProfileData | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -28,6 +36,23 @@ export default function FarmEntryPanel({ userId, farms, selectedFarmId, tier, on
     [farms]
   )
   const cropBlocked = tier === 'free' && activePlots >= 2
+
+  async function loadProfile() {
+    setError('')
+    try {
+      const response = await fetch('/api/auth/me', { cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Unable to load profile')
+      setProfile(payload.user as ProfileData)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load profile')
+    }
+  }
+
+  async function openProfile() {
+    setMode('profile')
+    await loadProfile()
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -40,10 +65,11 @@ export default function FarmEntryPanel({ userId, farms, selectedFarmId, tier, on
       </div>
 
       {!mode ? (
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-2">
           <Action icon={MapPin} label="Farm" onClick={() => setMode('farm')} />
           <Action icon={Sprout} label="Crop" onClick={() => setMode('crop')} disabled={!farms.length || cropBlocked} />
           <Action icon={Banknote} label="Money" onClick={() => setMode('finance')} disabled={!farms.length} />
+          <Action icon={Mail} label="Profile" onClick={() => void openProfile()} />
         </div>
       ) : null}
 
@@ -53,12 +79,14 @@ export default function FarmEntryPanel({ userId, farms, selectedFarmId, tier, on
       {mode === 'farm' ? <FarmForm userId={userId} busy={busy} setBusy={setBusy} setError={setError} done={async () => { setMode(null); await onChanged() }} /> : null}
       {mode === 'crop' ? <CropForm userId={userId} farmId={selectedFarmId || farms[0]?._id} busy={busy} setBusy={setBusy} setError={setError} done={async () => { setMode(null); await onChanged() }} /> : null}
       {mode === 'finance' ? <FinanceForm userId={userId} farmId={selectedFarmId || farms[0]?._id} busy={busy} setBusy={setBusy} setError={setError} done={async () => { setMode(null); await onChanged() }} /> : null}
+      {mode === 'profile' && profile ? <div className="mt-4"><ProfileBillingCard user={profile} onUpdated={loadProfile} /></div> : null}
+      {mode === 'profile' && !profile && !error ? <p className="mt-4 text-sm text-muted-foreground">Loading profile…</p> : null}
     </div>
   )
 }
 
 function Action({ icon: Icon, label, onClick, disabled = false }: { icon: typeof Plus; label: string; onClick: () => void; disabled?: boolean }) {
-  return <button onClick={onClick} disabled={disabled} className="flex flex-col items-center gap-1 rounded-lg border border-border p-3 text-xs font-semibold disabled:opacity-40"><Icon className="h-5 w-5 text-gold" />{label}</button>
+  return <button onClick={onClick} disabled={disabled} className="flex min-w-0 flex-col items-center gap-1 rounded-lg border border-border p-2.5 text-[11px] font-semibold disabled:opacity-40"><Icon className="h-5 w-5 text-gold" /><span className="truncate">{label}</span></button>
 }
 
 function FarmForm({ userId, busy, setBusy, setError, done }: FormProps) {
