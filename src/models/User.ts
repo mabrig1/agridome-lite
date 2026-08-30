@@ -4,6 +4,7 @@ const UserSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 120 },
     phone: { type: String, required: true, trim: true, index: true },
+    email: { type: String, trim: true, lowercase: true, default: null, index: true },
     role: {
       type: String,
       enum: ['farmer', 'coop_admin', 'agronomist'],
