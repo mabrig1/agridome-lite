@@ -91,20 +91,19 @@ export async function syncPendingChanges() {
     try {
       const response = await fetch(mutation.endpoint, {
         method: mutation.method,
-        headers: {
-          'content-type': 'application/json',
-          'x-agridome-user-id': mutation.userId,
-        },
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
         body: mutation.method === 'DELETE' ? undefined : JSON.stringify(mutation.body),
       })
 
+      if (response.status === 401) {
+        throw new Error('Your session expired. Sign in again before syncing queued changes.')
+      }
       if (!response.ok) {
         const message = await response.text()
         throw new Error(`${response.status}: ${message.slice(0, 240)}`)
       }
 
-      // The server owns last-updated-wins conflict resolution. A stale mutation can be
-      // acknowledged with applied:false and safely removed because the server copy is newer.
       await db.syncQueue.delete(mutation.id)
       synced += 1
     } catch (error) {
