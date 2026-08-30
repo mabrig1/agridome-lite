@@ -1,3 +1,4 @@
+import { Types } from 'mongoose'
 import { NextRequest } from 'next/server'
 import dbConnect from '@/lib/dbConnect'
 import { getRequestUserId, unauthorizedIdentityResponse } from '@/lib/requestUser'
@@ -51,16 +52,32 @@ export async function POST(request: NextRequest) {
   if (!userId) return unauthorizedIdentityResponse()
 
   const body = await request.json()
-  const { farmId, type, category, amount, date, description, cropId, updatedAt } = body
+  const { id: logId, farmId, type, category, amount, date, description, cropId, updatedAt } = body
   if (!farmId || !['Expense', 'Revenue'].includes(type) || !category || Number(amount) < 0) {
     return Response.json({ error: 'Invalid finance payload.' }, { status: 400 })
+  }
+  if (logId && !Types.ObjectId.isValid(logId)) {
+    return Response.json({ error: 'Invalid client finance id.' }, { status: 400 })
   }
 
   await dbConnect()
   const farm: any = await Farm.findOne({ _id: farmId, userId })
   if (!farm) return Response.json({ error: 'Farm not found.' }, { status: 404 })
 
+  if (logId) {
+    const existing: any = farm.financialLogs.id(logId)
+    if (existing) {
+      return Response.json({
+        log: existing,
+        replayed: true,
+        summary: summarize(farm.financialLogs),
+        byCrop: summarizeByCrop(farm),
+      })
+    }
+  }
+
   farm.financialLogs.push({
+    ...(logId ? { _id: new Types.ObjectId(logId) } : {}),
     type,
     category,
     amount: Number(amount),
