@@ -1,3 +1,4 @@
+import { Types } from 'mongoose'
 import { NextRequest } from 'next/server'
 import dbConnect from '@/lib/dbConnect'
 import { getRequestUserId, unauthorizedIdentityResponse } from '@/lib/requestUser'
@@ -19,10 +20,13 @@ export async function POST(request: NextRequest) {
   if (!userId) return unauthorizedIdentityResponse()
 
   const body = await request.json()
-  const { name, location, totalSizeAcres, cooperativeId, updatedAt } = body
+  const { id, name, location, totalSizeAcres, cooperativeId, updatedAt } = body
 
   if (!name || !location?.coordinates || !location?.region || Number(totalSizeAcres) < 0) {
     return Response.json({ error: 'Invalid farm payload.' }, { status: 400 })
+  }
+  if (id && !Types.ObjectId.isValid(id)) {
+    return Response.json({ error: 'Invalid client farm id.' }, { status: 400 })
   }
 
   const [longitude, latitude] = location.coordinates.map(Number)
@@ -36,7 +40,14 @@ export async function POST(request: NextRequest) {
   }
 
   await dbConnect()
+
+  if (id) {
+    const existing = await Farm.findOne({ _id: id, userId })
+    if (existing) return Response.json({ farm: existing, replayed: true })
+  }
+
   const farm = await Farm.create({
+    ...(id ? { _id: new Types.ObjectId(id) } : {}),
     userId,
     cooperativeId: cooperativeId || null,
     name: String(name).trim(),
