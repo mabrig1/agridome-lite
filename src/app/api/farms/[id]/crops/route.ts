@@ -22,7 +22,7 @@ export async function POST(
   }
 
   await dbConnect()
-  const [farm, user, activePlotCount] = await Promise.all([
+  const [farm, userResult, activePlotCount] = await Promise.all([
     Farm.findOne({ _id: params.id, userId }),
     User.findById(userId).lean(),
     Farm.aggregate([
@@ -35,6 +35,7 @@ export async function POST(
 
   if (!farm) return Response.json({ error: 'Farm not found.' }, { status: 404 })
 
+  const user = userResult as any
   const tier = user?.subscription?.tier ?? 'free'
   const activeCount = activePlotCount[0]?.count ?? 0
   const incomingStatus = status ?? 'Planted'
