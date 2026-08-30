@@ -21,6 +21,7 @@ const CropSchema = new Schema(
     variety: { type: String, trim: true, default: '' },
     plantingDate: { type: Date, required: true },
     expectedHarvestDate: { type: Date, required: true },
+    expectedYieldKg: { type: Number, min: 0, default: 0 },
     status: {
       type: String,
       enum: ['Planted', 'Growing', 'Harvested', 'Failed'],
