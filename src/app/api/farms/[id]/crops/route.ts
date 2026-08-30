@@ -1,3 +1,4 @@
+import { Types } from 'mongoose'
 import { NextRequest } from 'next/server'
 import dbConnect from '@/lib/dbConnect'
 import { getRequestUserId, unauthorizedIdentityResponse } from '@/lib/requestUser'
@@ -14,7 +15,7 @@ export async function POST(
   if (!userId) return unauthorizedIdentityResponse()
 
   const body = await request.json()
-  const { cropType, variety, plantingDate, expectedHarvestDate, status, plotLabel, plotSizeAcres, updatedAt } = body
+  const { cropType, variety, plantingDate, expectedHarvestDate, expectedYieldKg, status, plotLabel, plotSizeAcres, updatedAt } = body
 
   if (!cropType || !plantingDate || !expectedHarvestDate) {
     return Response.json({ error: 'cropType, plantingDate and expectedHarvestDate are required.' }, { status: 400 })
@@ -25,7 +26,7 @@ export async function POST(
     Farm.findOne({ _id: params.id, userId }),
     User.findById(userId).lean(),
     Farm.aggregate([
-      { $match: { userId: farmObjectId(userId) } },
+      { $match: { userId: new Types.ObjectId(userId) } },
       { $unwind: '$crops' },
       { $match: { 'crops.status': { $in: ['Planted', 'Growing'] } } },
       { $count: 'count' },
@@ -49,6 +50,7 @@ export async function POST(
     variety: String(variety ?? '').trim(),
     plantingDate: new Date(plantingDate),
     expectedHarvestDate: new Date(expectedHarvestDate),
+    expectedYieldKg: Number(expectedYieldKg ?? 0),
     status: incomingStatus,
     plotLabel: String(plotLabel ?? '').trim(),
     plotSizeAcres: Number(plotSizeAcres ?? 0),
@@ -90,7 +92,7 @@ export async function PATCH(
     if (!task) return Response.json({ error: 'Task not found.' }, { status: 404 })
     Object.assign(task, taskPatch ?? {}, { updatedAt: clientUpdatedAt })
   } else {
-    const allowed = ['variety', 'expectedHarvestDate', 'status', 'plotLabel', 'plotSizeAcres', 'tasks']
+    const allowed = ['variety', 'expectedHarvestDate', 'expectedYieldKg', 'status', 'plotLabel', 'plotSizeAcres', 'tasks']
     for (const key of allowed) {
       if (patch?.[key] !== undefined) crop[key] = patch[key]
     }
@@ -99,11 +101,4 @@ export async function PATCH(
 
   await farm.save()
   return Response.json({ farm, crop, applied: true })
-}
-
-function farmObjectId(value: string) {
-  // Deferred import-free conversion works because Mongoose casts aggregation ids only with explicit ObjectIds.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { Types } = require('mongoose') as typeof import('mongoose')
-  return new Types.ObjectId(value)
 }
