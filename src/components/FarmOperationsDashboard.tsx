@@ -1,10 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CloudOff, Download, RefreshCw, Sprout, TrendingDown, TrendingUp, WalletCards } from 'lucide-react'
+import { Download, LogOut, RefreshCw, Sprout, TrendingDown, TrendingUp, WalletCards } from 'lucide-react'
+import PhoneAuthPanel from '@/components/PhoneAuthPanel'
 import { exportFinanceCsv, exportFinancePdf } from '@/lib/financialExport'
 import { getPendingSyncCount, installConnectivitySync, syncPendingChanges } from '@/lib/offlineDb'
 import { t, type SupportedLanguage } from '@/lib/i18n'
+
+interface SessionUser {
+  id: string
+  name: string
+  phone: string
+  email?: string | null
+  role: 'farmer' | 'coop_admin' | 'agronomist'
+  preferredLanguage: SupportedLanguage
+  subscription?: { tier?: 'free' | 'pro'; status?: string }
+}
 
 interface Farm {
   _id: string
@@ -41,7 +52,8 @@ const emptyFinance: FinancePayload = {
 export default function FarmOperationsDashboard() {
   const [language, setLanguage] = useState<SupportedLanguage>('en')
   const [isOnline, setIsOnline] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [user, setUser] = useState<SessionUser | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [farms, setFarms] = useState<Farm[]>([])
   const [selectedFarmId, setSelectedFarmId] = useState('')
   const [finance, setFinance] = useState<FinancePayload>(emptyFinance)
@@ -56,18 +68,36 @@ export default function FarmOperationsDashboard() {
     [farms, selectedFarmId]
   )
 
-  const authHeaders = useCallback(() => ({ 'x-agridome-user-id': userId ?? '' }), [userId])
+  const loadSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/me', { cache: 'no-store' })
+      if (!response.ok) {
+        setUser(null)
+        return
+      }
+      const payload = await response.json()
+      const nextUser = payload.user as SessionUser
+      setUser(nextUser)
+      if (nextUser.preferredLanguage) setLanguage(nextUser.preferredLanguage)
+    } finally {
+      setAuthChecked(true)
+    }
+  }, [])
 
   const refreshSyncCount = useCallback(async () => {
     setPendingSync(await getPendingSyncCount())
   }, [])
 
   const loadCloudData = useCallback(async () => {
-    if (!userId || !navigator.onLine) return
+    if (!user?.id || !navigator.onLine) return
     setLoading(true)
     setError('')
     try {
-      const farmsResponse = await fetch('/api/farms', { headers: authHeaders(), cache: 'no-store' })
+      const farmsResponse = await fetch('/api/farms', { cache: 'no-store' })
+      if (farmsResponse.status === 401) {
+        setUser(null)
+        return
+      }
       if (!farmsResponse.ok) throw new Error('Unable to load farms')
       const farmsPayload = await farmsResponse.json()
       const nextFarms: Farm[] = farmsPayload.farms ?? []
@@ -78,45 +108,42 @@ export default function FarmOperationsDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [authHeaders, selectedFarmId, userId])
+  }, [selectedFarmId, user?.id])
 
   const loadFarmIntelligence = useCallback(async () => {
-    if (!userId || !selectedFarm?.['_id'] || !navigator.onLine) return
+    if (!user?.id || !selectedFarm?._id || !navigator.onLine) return
     const farmId = selectedFarm._id
-    const headers = authHeaders()
     const [financeResponse, weatherResponse, supplierResponse] = await Promise.all([
-      fetch(`/api/finance?farmId=${encodeURIComponent(farmId)}`, { headers, cache: 'no-store' }),
-      fetch(`/api/weather?farmId=${encodeURIComponent(farmId)}`, { headers, cache: 'no-store' }),
+      fetch(`/api/finance?farmId=${encodeURIComponent(farmId)}`, { cache: 'no-store' }),
+      fetch(`/api/weather?farmId=${encodeURIComponent(farmId)}`, { cache: 'no-store' }),
       fetch(`/api/suppliers?region=${encodeURIComponent(selectedFarm.location.region)}`, { cache: 'no-store' }),
     ])
 
     if (financeResponse.ok) setFinance(await financeResponse.json())
     if (weatherResponse.ok) setWeather(await weatherResponse.json())
     if (supplierResponse.ok) setSuppliers((await supplierResponse.json()).offers ?? [])
-  }, [authHeaders, selectedFarm, userId])
+  }, [selectedFarm, user?.id])
 
   useEffect(() => {
     setIsOnline(navigator.onLine)
-    const params = new URLSearchParams(window.location.search)
-    const pilotUserId = params.get('userId')
-    const storedUserId = localStorage.getItem('agridome_cloud_user_id')
-    const resolvedUserId = pilotUserId || storedUserId
-    if (pilotUserId) localStorage.setItem('agridome_cloud_user_id', pilotUserId)
-    setUserId(resolvedUserId)
-
     const online = () => setIsOnline(true)
     const offline = () => setIsOnline(false)
     window.addEventListener('online', online)
     window.addEventListener('offline', offline)
-    const uninstallSync = installConnectivitySync(() => void refreshSyncCount())
+    void loadSession()
     void refreshSyncCount()
 
     return () => {
       window.removeEventListener('online', online)
       window.removeEventListener('offline', offline)
-      uninstallSync()
     }
-  }, [refreshSyncCount])
+  }, [loadSession, refreshSyncCount])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const uninstallSync = installConnectivitySync(() => void refreshSyncCount())
+    return uninstallSync
+  }, [refreshSyncCount, user?.id])
 
   useEffect(() => {
     void loadCloudData()
@@ -133,11 +160,20 @@ export default function FarmOperationsDashboard() {
   }
 
   async function handleUpgrade() {
-    if (!userId) return
-    const response = await fetch('/api/billing/initialize', { method: 'POST', headers: authHeaders() })
+    if (!user) return
+    const response = await fetch('/api/billing/initialize', { method: 'POST' })
     const payload = await response.json()
     if (response.ok && payload.authorizationUrl) window.location.assign(payload.authorizationUrl)
     else setError(payload.error || 'Unable to start Pro checkout')
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setUser(null)
+    setFarms([])
+    setSelectedFarmId('')
+    setFinance(emptyFinance)
+    setWeather(null)
   }
 
   return (
@@ -147,15 +183,14 @@ export default function FarmOperationsDashboard() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">AgriDome Lite</p>
             <h2 className="mt-1 text-2xl font-bold">{t(language, 'dashboard')}</h2>
+            {user ? <p className="mt-1 text-xs text-muted-foreground">{user.name} • {user.subscription?.tier === 'pro' ? 'Pro' : 'Lite'}</p> : null}
           </div>
-          <select
-            value={language}
-            onChange={event => setLanguage(event.target.value as SupportedLanguage)}
-            className="rounded-lg border border-border bg-card px-2 py-2 text-sm"
-            aria-label="Language"
-          >
-            <option value="en">EN</option><option value="ha">HA</option><option value="sw">SW</option><option value="fr">FR</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select value={language} onChange={event => setLanguage(event.target.value as SupportedLanguage)} className="rounded-lg border border-border bg-card px-2 py-2 text-sm" aria-label="Language">
+              <option value="en">EN</option><option value="ha">HA</option><option value="sw">SW</option><option value="fr">FR</option>
+            </select>
+            {user ? <button onClick={handleLogout} className="rounded-lg border border-border p-2 text-muted-foreground" aria-label="Sign out"><LogOut className="h-4 w-4" /></button> : null}
+          </div>
         </div>
 
         <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
@@ -164,93 +199,71 @@ export default function FarmOperationsDashboard() {
             {isOnline ? t(language, 'online') : t(language, 'offline')}
             {pendingSync > 0 ? <span className="text-muted-foreground">• {pendingSync} queued</span> : null}
           </div>
-          <button onClick={handleManualSync} disabled={!isOnline} className="rounded-lg border border-border p-2 disabled:opacity-40" aria-label="Sync now">
-            <RefreshCw className="h-4 w-4" />
-          </button>
+          <button onClick={handleManualSync} disabled={!isOnline || !user} className="rounded-lg border border-border p-2 disabled:opacity-40" aria-label="Sync now"><RefreshCw className="h-4 w-4" /></button>
         </div>
 
-        {!userId ? (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
-            <div className="flex items-center gap-2 font-semibold"><CloudOff className="h-4 w-4" /> Cloud account not linked</div>
-            <p className="mt-2 text-muted-foreground">Your existing pilot records remain on this device. Verified farmer login/OTP must be connected before cloud sync is opened to production users.</p>
-          </div>
-        ) : null}
-
+        {authChecked && !user ? <PhoneAuthPanel onAuthenticated={loadSession} /> : null}
+        {!authChecked ? <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Checking secure session…</div> : null}
         {error ? <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm">{error}</div> : null}
 
-        {farms.length > 1 ? (
-          <select value={selectedFarm?._id ?? ''} onChange={event => setSelectedFarmId(event.target.value)} className="w-full rounded-xl border border-border bg-card p-3">
-            {farms.map(farm => <option key={farm._id} value={farm._id}>{farm.name} — {farm.location.region}</option>)}
-          </select>
-        ) : null}
+        {user ? (
+          <>
+            {farms.length > 1 ? (
+              <select value={selectedFarm?._id ?? ''} onChange={event => setSelectedFarmId(event.target.value)} className="w-full rounded-xl border border-border bg-card p-3">
+                {farms.map(farm => <option key={farm._id} value={farm._id}>{farm.name} — {farm.location.region}</option>)}
+              </select>
+            ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Metric icon={TrendingUp} label={t(language, 'revenue')} value={finance.summary.revenue} />
-          <Metric icon={TrendingDown} label={t(language, 'expenses')} value={finance.summary.expenses} />
-          <Metric icon={WalletCards} label={t(language, 'netProfit')} value={finance.summary.netProfit} />
-          <Metric icon={Sprout} label="Margin" value={finance.summary.marginPercent} suffix="%" money={false} />
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold">{t(language, 'weatherAdvice')}</h3>
-            {loading ? <span className="text-xs text-muted-foreground">Loading…</span> : null}
-          </div>
-          <div className="mt-3 space-y-2">
-            {(weather?.advice ?? []).map(item => (
-              <div key={item.code} className="rounded-lg bg-muted/50 p-3 text-sm">{item.message}</div>
-            ))}
-            {!weather?.advice?.length ? <p className="text-sm text-muted-foreground">Weather advice will appear when the farm is linked and online.</p> : null}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold">Crop profitability</h3>
-            <span className="text-xs text-muted-foreground">per plot</span>
-          </div>
-          <div className="mt-3 space-y-2">
-            {finance.byCrop.map(row => (
-              <div key={row.cropId} className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
-                <div><p className="font-medium">{row.cropType}</p><p className="text-xs text-muted-foreground">{row.plotLabel || 'Unlabelled plot'}</p></div>
-                <div className="text-right"><p className="font-semibold">₦{row.netProfit.toLocaleString()}</p><p className="text-xs text-muted-foreground">{row.marginPercent.toFixed(1)}% margin</p></div>
-              </div>
-            ))}
-            {!finance.byCrop.length ? <p className="text-sm text-muted-foreground">Assign finance entries to crops to see plot-level margins.</p> : null}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => selectedFarm && exportFinanceCsv(selectedFarm.name, finance.logs)}
-            disabled={!selectedFarm}
-            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-sm font-semibold disabled:opacity-40"
-          ><Download className="h-4 w-4" /> {t(language, 'exportCsv')}</button>
-          <button
-            onClick={() => selectedFarm && exportFinancePdf(selectedFarm.name, selectedFarm.location.region, finance.logs, finance.summary)}
-            disabled={!selectedFarm}
-            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-sm font-semibold disabled:opacity-40"
-          ><Download className="h-4 w-4" /> {t(language, 'exportPdf')}</button>
-        </div>
-
-        <div className="rounded-xl border border-gold/40 bg-gold/10 p-4">
-          <h3 className="font-semibold">Pro — unlimited plots + sync</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Weather alerts, multi-device cloud sync and bank-ready PDF reporting.</p>
-          <button onClick={handleUpgrade} disabled={!userId} className="mt-3 w-full rounded-lg bg-gold px-4 py-3 font-semibold text-black disabled:opacity-40">{t(language, 'upgradePro')}</button>
-        </div>
-
-        {suppliers.length ? (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="font-semibold">Verified input suppliers</h3>
-            <div className="mt-3 space-y-2">
-              {suppliers.slice(0, 4).map(offer => (
-                <a key={offer._id} href={offer.url} target="_blank" rel="noreferrer sponsored" className="block rounded-lg bg-muted/50 p-3 text-sm">
-                  <p className="font-medium">{offer.title}</p>
-                  <p className="text-xs text-muted-foreground">{offer.supplierName} • {offer.category}</p>
-                </a>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <Metric icon={TrendingUp} label={t(language, 'revenue')} value={finance.summary.revenue} />
+              <Metric icon={TrendingDown} label={t(language, 'expenses')} value={finance.summary.expenses} />
+              <Metric icon={WalletCards} label={t(language, 'netProfit')} value={finance.summary.netProfit} />
+              <Metric icon={Sprout} label="Margin" value={finance.summary.marginPercent} suffix="%" money={false} />
             </div>
-          </div>
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{t(language, 'weatherAdvice')}</h3>{loading ? <span className="text-xs text-muted-foreground">Loading…</span> : null}</div>
+              <div className="mt-3 space-y-2">
+                {(weather?.advice ?? []).map(item => <div key={item.code} className="rounded-lg bg-muted/50 p-3 text-sm">{item.message}</div>)}
+                {!weather?.advice?.length ? <p className="text-sm text-muted-foreground">Weather advice will appear after you add a farm with location coordinates.</p> : null}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Crop profitability</h3><span className="text-xs text-muted-foreground">per plot</span></div>
+              <div className="mt-3 space-y-2">
+                {finance.byCrop.map(row => (
+                  <div key={row.cropId} className="flex items-center justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                    <div><p className="font-medium">{row.cropType}</p><p className="text-xs text-muted-foreground">{row.plotLabel || 'Unlabelled plot'}</p></div>
+                    <div className="text-right"><p className="font-semibold">₦{row.netProfit.toLocaleString()}</p><p className="text-xs text-muted-foreground">{row.marginPercent.toFixed(1)}% margin</p></div>
+                  </div>
+                ))}
+                {!finance.byCrop.length ? <p className="text-sm text-muted-foreground">Assign finance entries to crops to see plot-level margins.</p> : null}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => selectedFarm && exportFinanceCsv(selectedFarm.name, finance.logs)} disabled={!selectedFarm} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-sm font-semibold disabled:opacity-40"><Download className="h-4 w-4" /> {t(language, 'exportCsv')}</button>
+              <button onClick={() => selectedFarm && exportFinancePdf(selectedFarm.name, selectedFarm.location.region, finance.logs, finance.summary)} disabled={!selectedFarm} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-3 text-sm font-semibold disabled:opacity-40"><Download className="h-4 w-4" /> {t(language, 'exportPdf')}</button>
+            </div>
+
+            <div className="rounded-xl border border-gold/40 bg-gold/10 p-4">
+              <h3 className="font-semibold">Pro — unlimited plots + sync</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Weather alerts, multi-device cloud sync and bank-ready PDF reporting.</p>
+              <button onClick={handleUpgrade} disabled={user.subscription?.tier === 'pro'} className="mt-3 w-full rounded-lg bg-gold px-4 py-3 font-semibold text-black disabled:opacity-40">{user.subscription?.tier === 'pro' ? 'Pro active' : t(language, 'upgradePro')}</button>
+            </div>
+
+            {suppliers.length ? (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="font-semibold">Verified input suppliers</h3>
+                <div className="mt-3 space-y-2">
+                  {suppliers.slice(0, 4).map(offer => (
+                    <a key={offer._id} href={offer.url} target="_blank" rel="noreferrer sponsored" className="block rounded-lg bg-muted/50 p-3 text-sm"><p className="font-medium">{offer.title}</p><p className="text-xs text-muted-foreground">{offer.supplierName} • {offer.category}</p></a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
     </section>
