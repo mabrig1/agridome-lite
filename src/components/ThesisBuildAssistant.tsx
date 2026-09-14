@@ -53,15 +53,16 @@ export default function ThesisBuildAssistant() {
       if (saved.area) setArea(String(saved.area))
       if (saved.budget !== undefined) setBudget(String(saved.budget))
       if (saved.materials) setMaterials(saved.materials)
+      if (typeof saved.hazardFound === 'boolean') setHazardFound(saved.hazardFound)
       if (saved.soil) setSoil(saved.soil)
     } catch {}
   }, [])
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ area, budget, materials, soil }))
+      localStorage.setItem(STORE_KEY, JSON.stringify({ area, budget, materials, hazardFound, soil }))
     } catch {}
-  }, [area, budget, materials, soil])
+  }, [area, budget, materials, hazardFound, soil])
 
   const build = useMemo(() => {
     const missing = MATERIALS.filter(item => !materials[item.key])
