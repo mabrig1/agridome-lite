@@ -11,7 +11,7 @@ AgriDome Lite is a Progressive Web App (PWA) built with Next.js, Tailwind and Fa
 | **Farm Command Center** | Farm readiness score, data-quality score, stale-reading detection, priority actions and quick access to all farm tools |
 | **Climate Tracker** | Manual temperature, humidity, CO₂ and light logs with history charts and corrective guidance |
 | **Climate-fit Crop Ranking** | Ranks supported crops against the latest temperature and humidity reading with transparent limitations |
-| **Crop Guide** | 10 priority crops with growth stages, tasks, watering guidance and common pest references |
+| **Crop Guide** | 12 priority crops with growth stages, tasks, watering guidance and common pest references |
 | **Crop Health Scanner** | Photo-based AI field triage with observation, likely causes, severity, next actions and escalation guidance |
 | **Yield Predictor** | Area/plant-count based yield and revenue planning |
 | **AI Advisor** | Nigerian farming context with English, Igbo, Hausa and Yoruba support |
@@ -118,7 +118,7 @@ The AI advisor supports:
 
 ## Crops Covered
 
-Tomato, bell pepper, cucumber, lettuce, spinach, okra, beetroot, Irish potato, strawberry and green beans.
+Tomato, bell pepper, cucumber, lettuce, spinach, okra, beetroot, Irish potato, strawberry, green beans, **onion and cabbage**. Onion, cabbage and lettuce are the thesis focal crops.
 
 Crop-fit ranking is based only on the app's stored temperature and humidity targets. It does **not** replace soil, water, variety, disease-history or market assessment.
 
