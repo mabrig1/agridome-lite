@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
+import FarmCommandCenter from '@/components/FarmCommandCenter'
 import ClimateTracker from '@/components/ClimateTracker'
 import CropGuide from '@/components/CropGuide'
 import PestScanner from '@/components/PestScanner'
@@ -9,11 +10,10 @@ import YieldPredictor from '@/components/YieldPredictor'
 import ChatAdvisor from '@/components/ChatAdvisor'
 import PilotTracker from '@/components/PilotTracker'
 import OfflineBanner from '@/components/OfflineBanner'
-
-export type Tab = 'climate' | 'crops' | 'pest' | 'yield' | 'chat' | 'pilot'
+import { Tab } from '@/lib/navigation'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('climate')
+  const [activeTab, setActiveTab] = useState<Tab>('command')
   const [isOnline, setIsOnline] = useState(true)
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-serif text-xl font-semibold text-gold leading-none">AgriDome Lite</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Smart Greenhouse Companion</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Offline Farm Intelligence for Smallholders</p>
           </div>
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-amber-400'}`} />
@@ -46,6 +46,7 @@ export default function Home() {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24">
+        {activeTab === 'command' && <FarmCommandCenter onNavigate={setActiveTab} />}
         {activeTab === 'climate' && <ClimateTracker />}
         {activeTab === 'crops' && <CropGuide />}
         {activeTab === 'pest' && <PestScanner isOnline={isOnline} />}

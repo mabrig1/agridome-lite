@@ -1,10 +1,11 @@
 'use client'
 
-import { Tab } from '@/app/page'
+import { Tab } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
-import { BarChart2, Bug, ClipboardCheck, Leaf, MessageCircle, Thermometer } from 'lucide-react'
+import { BarChart2, Bug, ClipboardCheck, LayoutDashboard, Leaf, MessageCircle, Thermometer } from 'lucide-react'
 
 const tabs = [
+  { id: 'command' as Tab, label: 'Farm', icon: LayoutDashboard },
   { id: 'climate' as Tab, label: 'Climate', icon: Thermometer },
   { id: 'crops' as Tab, label: 'Crops', icon: Leaf },
   { id: 'pest' as Tab, label: 'Pest', icon: Bug },
@@ -29,12 +30,12 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
             onClick={() => onTabChange(id)}
             aria-current={activeTab === id ? 'page' : undefined}
             className={cn(
-              'relative flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors',
+              'relative min-w-0 flex-1 flex flex-col items-center gap-1 py-3 text-[9px] font-medium transition-colors',
               activeTab === id ? 'text-gold' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Icon className={cn('w-5 h-5', activeTab === id && 'drop-shadow-[0_0_6px_rgba(245,158,11,0.6)]')} />
-            <span>{label}</span>
+            <span className="truncate max-w-full px-0.5">{label}</span>
             {activeTab === id ? <span className="absolute bottom-0 w-8 h-0.5 bg-gold rounded-t-full" /> : null}
           </button>
         ))}
