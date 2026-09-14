@@ -20,6 +20,20 @@ AgriDome Lite is a Progressive Web App (PWA) built with Next.js, Tailwind and Fa
 | **Pilot Evidence** | Consent, pseudonymous baseline, weekly outcomes, progress metrics, de-identified JSON/CSV export and local coordinator analysis |
 | **CI Verification** | GitHub Actions validates the Next.js build and FastAPI backend on feature branches and pull requests |
 
+## Competitive position
+
+**AgriDome Lite is positioned as Africa's offline Farm Command Center for smallholder greenhouse and intensive-vegetable farming.**
+
+A September 2026 target-segment feature-fit benchmark compared AgriDome with Plantix, PlantVillage Nuru, OneSoil, Cropwise, AGRIVI, farmOS, DigiFarm, eProd and FAO's Digital Services Portfolio. On criteria weighted for **African smallholder greenhouse/intensive-vegetable programmes**, AgriDome scored **89.8/100**, ahead of FAO DSP (76.0) and Cropwise (69.8).
+
+This is a **segment-fit benchmark**, not a claim that AgriDome is globally more mature or stronger in every category. Plantix remains far stronger at diagnosis scale; OneSoil/Cropwise at satellite and precision agriculture; DigiFarm at embedded finance; and eProd at enterprise supply-chain infrastructure.
+
+**Category to own:** _Offline Farm Command Center for African Smallholder Greenhouses and Intensive Vegetable Programmes._
+
+**Tagline:** **Observe. Decide. Act. Prove. — Even Offline.**
+
+See the [2026 competitive benchmark](docs/COMPETITIVE_BENCHMARK_2026.md) and [partner/funder positioning brief](docs/PARTNER_POSITIONING.md).
+
 ## Why AgriDome is different
 
 AgriDome is designed as a **farm operating layer**, not just a chatbot. The Command Center combines the records already captured by the app and turns them into a short list of explainable actions. AI is treated as decision support rather than a laboratory diagnosis, while the pilot module makes field outcomes exportable for extension programmes, NGOs and grant-funded trials.
