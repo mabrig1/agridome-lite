@@ -16,6 +16,8 @@ AgriDome Lite is a Progressive Web App (PWA) built with Next.js, Tailwind and Fa
 | **Yield Predictor** | Area/plant-count based yield and revenue planning |
 | **AI Advisor** | Nigerian farming context with English, Igbo, Hausa and Yoruba support |
 | **Farm Profile** | Location and growing-area setup ready for future weather, market and extension integrations |
+| **Zero-Cash Build Assistant** | Audits owned/recovered/donated materials, rejects unsafe waste, identifies missing components and adapts the build plan to a farmer's cash ceiling |
+| **Soil Health & Treatment Assistant** | Pre-plant drainage, contamination and disease-history screening with conservative treatment and escalation rules |
 | **Offline Mode** | Core farm records remain on-device and usable without internet |
 | **Pilot Evidence** | Consent, pseudonymous baseline, weekly outcomes, progress metrics, de-identified JSON/CSV export and local coordinator analysis |
 | **CI Verification** | GitHub Actions validates the Next.js build and FastAPI backend on feature branches and pull requests |
@@ -101,6 +103,10 @@ The backend health endpoint works even when the AI key is not configured, which 
 5. Set `ALLOWED_ORIGINS` to the production frontend origin.
 
 The included `backend/render.yaml` can be used as a Render Blueprint starting point.
+
+## Language Support
+
+The thesis-derived field toolkit adds a **resource audit → safe-material gate → adaptive build → soil-readiness → planting** workflow. “Zero cash” is defined as ₦0 new-material outlay where safe components are already owned, recovered, donated or exchanged; labour, transport and opportunity cost remain real economic costs. The soil assistant deliberately avoids automatic chemical dosing and escalates suspected contamination or severe recurring disease.
 
 ## Language Support
 
