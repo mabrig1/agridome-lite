@@ -33,7 +33,7 @@ export interface PilotAggregateSummary {
   soilEscalationCount: number
 }
 
-function escapeCsv(value: string | number) {
+function escapeCsv(value: string | number | boolean) {
   return `"${String(value).replaceAll('"', '""')}"`
 }
 
