@@ -12,6 +12,7 @@ import {
   Leaf,
   MapPin,
   MessageCircle,
+  Hammer,
   Save,
   ShieldAlert,
   Sparkles,
@@ -59,6 +60,7 @@ const QUICK_ACTIONS: Array<{ tab: Tab; label: string; icon: typeof Thermometer }
   { tab: 'yield', label: 'Yield plan', icon: BarChart3 },
   { tab: 'chat', label: 'Ask advisor', icon: MessageCircle },
   { tab: 'pilot', label: 'Pilot evidence', icon: ClipboardCheck },
+  { tab: 'build', label: 'Zero-cash build', icon: Hammer },
 ]
 
 function loadSnapshot(): Snapshot {
