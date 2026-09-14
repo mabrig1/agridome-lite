@@ -10,20 +10,40 @@ import {
   ClipboardCheck,
   Gauge,
   Leaf,
+  MapPin,
   MessageCircle,
+  Save,
   ShieldAlert,
   Sparkles,
   Thermometer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { buildFarmIntelligence, FarmAction, FarmRiskLevel } from '@/lib/farmIntelligence'
-import { storage } from '@/lib/storage'
+import {
+  AppSettings,
+  ClimateLog,
+  CropStage,
+  PestScan,
+  PilotWeeklyOutcome,
+  storage,
+  YieldRecord,
+} from '@/lib/storage'
 import { Tab } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
 
 interface Props {
   onNavigate: (tab: Tab) => void
+}
+
+interface Snapshot {
+  climateLogs: ClimateLog[]
+  cropStages: CropStage[]
+  pestScans: PestScan[]
+  yieldRecords: YieldRecord[]
+  pilotOutcomes: PilotWeeklyOutcome[]
+  settings: AppSettings
 }
 
 const LEVEL_STYLES: Record<FarmRiskLevel, string> = {
@@ -41,30 +61,54 @@ const QUICK_ACTIONS: Array<{ tab: Tab; label: string; icon: typeof Thermometer }
   { tab: 'pilot', label: 'Pilot evidence', icon: ClipboardCheck },
 ]
 
+function loadSnapshot(): Snapshot {
+  return {
+    climateLogs: storage.getClimateLogs(),
+    cropStages: storage.getCropStages(),
+    pestScans: storage.getPestScans(),
+    yieldRecords: storage.getYieldRecords(),
+    pilotOutcomes: storage.getPilotOutcomes(),
+    settings: storage.getSettings(),
+  }
+}
+
 export default function FarmCommandCenter({ onNavigate }: Props) {
   const [ready, setReady] = useState(false)
-  const [snapshot, setSnapshot] = useState(() => ({
-    climateLogs: [] as ReturnType<typeof storage.getClimateLogs>,
-    cropStages: [] as ReturnType<typeof storage.getCropStages>,
-    pestScans: [] as ReturnType<typeof storage.getPestScans>,
-    yieldRecords: [] as ReturnType<typeof storage.getYieldRecords>,
-    pilotOutcomes: [] as ReturnType<typeof storage.getPilotOutcomes>,
-    settings: { language: 'en' as const },
-  }))
+  const [snapshot, setSnapshot] = useState<Snapshot>({
+    climateLogs: [],
+    cropStages: [],
+    pestScans: [],
+    yieldRecords: [],
+    pilotOutcomes: [],
+    settings: { language: 'en' },
+  })
+  const [profileForm, setProfileForm] = useState({ location: '', greenhouseSize: '' })
+  const [profileSaved, setProfileSaved] = useState(false)
 
   useEffect(() => {
-    setSnapshot({
-      climateLogs: storage.getClimateLogs(),
-      cropStages: storage.getCropStages(),
-      pestScans: storage.getPestScans(),
-      yieldRecords: storage.getYieldRecords(),
-      pilotOutcomes: storage.getPilotOutcomes(),
-      settings: storage.getSettings(),
+    const next = loadSnapshot()
+    setSnapshot(next)
+    setProfileForm({
+      location: next.settings.location ?? '',
+      greenhouseSize: next.settings.greenhouseSize ? String(next.settings.greenhouseSize) : '',
     })
     setReady(true)
   }, [])
 
   const intelligence = useMemo(() => buildFarmIntelligence(snapshot), [snapshot])
+
+  function saveFarmProfile() {
+    const size = Number(profileForm.greenhouseSize)
+    const next: AppSettings = {
+      ...snapshot.settings,
+      location: profileForm.location.trim() || undefined,
+      greenhouseSize: Number.isFinite(size) && size > 0 ? size : undefined,
+    }
+    storage.saveSettings(next)
+    setSnapshot(current => ({ ...current, settings: next }))
+    setProfileSaved(true)
+    window.setTimeout(() => setProfileSaved(false), 1800)
+  }
 
   if (!ready) return <div className="p-4 text-sm text-muted-foreground">Preparing farm command center…</div>
 
@@ -99,6 +143,43 @@ export default function FarmCommandCenter({ onNavigate }: Props) {
             </div>
           </div>
           <p className="text-[11px] opacity-60 mt-3">This score is an operational triage aid based on records in this device; it is not a scientific crop-health certification.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-gold" />
+            <CardTitle className="text-base">Farm profile</CardTitle>
+          </div>
+          <p className="text-xs text-muted-foreground">Set this once. It prepares AgriDome for location-aware weather, input and market integrations.</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label htmlFor="farm-location" className="text-xs text-muted-foreground mb-1 block">Farm location</label>
+            <Input
+              id="farm-location"
+              placeholder="e.g. Nsukka, Enugu State"
+              value={profileForm.location}
+              onChange={event => setProfileForm(form => ({ ...form, location: event.target.value }))}
+            />
+          </div>
+          <div>
+            <label htmlFor="farm-size" className="text-xs text-muted-foreground mb-1 block">Greenhouse / growing area (m²)</label>
+            <Input
+              id="farm-size"
+              type="number"
+              min="0"
+              inputMode="decimal"
+              placeholder="e.g. 120"
+              value={profileForm.greenhouseSize}
+              onChange={event => setProfileForm(form => ({ ...form, greenhouseSize: event.target.value }))}
+            />
+          </div>
+          <Button variant="outline" className="w-full gap-2" onClick={saveFarmProfile}>
+            {profileSaved ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4" />}
+            {profileSaved ? 'Profile saved' : 'Save farm profile'}
+          </Button>
         </CardContent>
       </Card>
 
