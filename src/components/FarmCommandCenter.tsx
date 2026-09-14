@@ -32,6 +32,7 @@ import {
   YieldRecord,
 } from '@/lib/storage'
 import { Tab } from '@/lib/navigation'
+import AdminEntry from '@/components/admin/AdminEntry'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -116,6 +117,7 @@ export default function FarmCommandCenter({ onNavigate }: Props) {
 
   return (
     <div className="p-4 space-y-4">
+      <AdminEntry />
       <Card className={cn('overflow-hidden border', LEVEL_STYLES[intelligence.level])}>
         <CardContent className="py-5">
           <div className="flex items-start justify-between gap-4">

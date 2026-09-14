@@ -20,13 +20,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: package.json
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+      - name: Verify administrator access controls
+        run: npm test
       - name: Build Next.js app
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
+      - name: Verify protected administrator pages
+        run: npm run test:admin-http
 
   backend:
     name: Backend validation
