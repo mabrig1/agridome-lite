@@ -197,10 +197,10 @@ export default function PilotTracker() {
             <p className="text-xs text-muted-foreground">{profile.location}</p>
           </div>
           <div className="flex flex-col gap-2">
-            <Button size="sm" variant="outline" onClick={() => downloadPilotJson(profile, baseline, outcomes)} disabled={!baseline && !outcomes.length} className="gap-2">
+            <Button size="sm" variant="outline" onClick={() => downloadPilotJson(profile, baseline, outcomes, storage.getBuildAssessment(), storage.getSoilAssessment())} disabled={!baseline && !outcomes.length} className="gap-2">
               <Download className="w-4 h-4" /> Pilot file
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => downloadPilotCsv(profile, baseline, outcomes)} disabled={!outcomes.length} className="gap-2 text-xs">
+            <Button size="sm" variant="ghost" onClick={() => downloadPilotCsv(profile, baseline, outcomes, storage.getBuildAssessment(), storage.getSoilAssessment())} disabled={!outcomes.length} className="gap-2 text-xs">
               CSV copy
             </Button>
           </div>
@@ -275,6 +275,14 @@ export default function PilotTracker() {
           </Card>
         </>
       )}
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Thesis evidence readiness</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 text-sm">
+          <Metric label="Build assessment" value={storage.getBuildAssessment() ? 'Saved' : 'Missing'} />
+          <Metric label="Soil assessment" value={storage.getSoilAssessment() ? 'Saved' : 'Missing'} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="py-4 space-y-3">
