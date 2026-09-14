@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Hammer, Leaf, Recycle, ShieldCheck, Sprout
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { storage } from '@/lib/storage'
 
 type MaterialKey = 'frame' | 'cover' | 'fasteners' | 'containers' | 'water'
 type BuildMode = 'build' | 'soil'
@@ -35,6 +36,7 @@ export default function ThesisBuildAssistant() {
     frame: false, cover: false, fasteners: false, containers: false, water: false,
   })
   const [hazardFound, setHazardFound] = useState(false)
+  const [evidenceSaved, setEvidenceSaved] = useState<'build' | 'soil' | null>(null)
   const [soil, setSoil] = useState({
     drainsWell: true,
     knownDisease: false,
@@ -77,6 +79,42 @@ export default function ThesisBuildAssistant() {
     if (!soil.tested) return { level: 'watch', title: 'SOIL CHECK RECOMMENDED', detail: 'Use a soil test or local extension assessment before applying lime, fertilizer or chemical treatment. Do not dose by guesswork.' }
     return { level: 'good', title: 'SOIL READINESS LOOKS GOOD', detail: 'Maintain sanitation and use only mature, safe organic matter. Record amendments and observations before planting.' }
   }, [soil])
+
+  function saveBuildEvidence() {
+    const feasibility = hazardFound
+      ? 'unsafe'
+      : build.missing.length === 0 && Math.max(0, Number(budget) || 0) === 0
+        ? 'zero-cash'
+        : build.missing.length <= 2
+          ? 'near-zero'
+          : 'more-materials'
+    storage.saveBuildAssessment({
+      recordedAt: new Date().toISOString(),
+      areaSqm: Math.max(0, Number(area) || 0),
+      cashBudgetNgn: Math.max(0, Number(budget) || 0),
+      materials,
+      missingMaterialKeys: build.missing.map(item => item.key),
+      hazardFound,
+      feasibility,
+    })
+    setEvidenceSaved('build')
+    window.setTimeout(() => setEvidenceSaved(null), 1800)
+  }
+
+  function saveSoilEvidence() {
+    const status = soil.suspectedContamination
+      ? 'expert-review'
+      : !soil.drainsWell
+        ? 'drainage-required'
+        : soil.knownDisease
+          ? 'treatment-required'
+          : !soil.tested
+            ? 'soil-check'
+            : 'ready'
+    storage.saveSoilAssessment({ recordedAt: new Date().toISOString(), ...soil, status })
+    setEvidenceSaved('soil')
+    window.setTimeout(() => setEvidenceSaved(null), 1800)
+  }
 
   return (
     <div className="p-4 space-y-4">
@@ -135,6 +173,9 @@ export default function ThesisBuildAssistant() {
               {['Choose a level, well-drained site and mark dimensions.', 'Sort, clean and inspect all recovered materials; reject unsafe items.', 'Set sound frame posts and cross-bracing; verify stability before covering.', 'Install serviceable crop cover/net with ventilation appropriate to local heat.', 'Prepare raised beds and water delivery; keep dirty construction waste out of crop beds.', 'Run the Soil Treatment Assistant before planting.', 'Record final materials, cash spent, labour and transport for pilot evidence.'].map((x,i) => (
                 <div key={x} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-gold/10 text-gold flex items-center justify-center text-xs flex-shrink-0">{i+1}</span><p>{x}</p></div>
               ))}
+              <Button variant="gold" className="w-full mt-4" onClick={saveBuildEvidence}>
+                {evidenceSaved === 'build' ? 'Build assessment saved' : 'Save build assessment for pilot evidence'}
+              </Button>
             </CardContent>
           </Card>
         </>
@@ -159,6 +200,9 @@ export default function ThesisBuildAssistant() {
               <p>• Solarization is a non-chemical option where climate permits: prepare and moisten soil, seal clear polyethylene tightly, and maintain treatment through a sustained hot/sunny period.</p>
               <p>• Do not automatically prescribe lime, fertilizer, fumigants or pesticides without diagnosis and locally appropriate rates.</p>
               <p>• Escalate suspected contamination, severe recurring disease or uncertain diagnosis to extension/laboratory support.</p>
+              <Button variant="gold" className="w-full mt-4" onClick={saveSoilEvidence}>
+                {evidenceSaved === 'soil' ? 'Soil assessment saved' : 'Save soil assessment for pilot evidence'}
+              </Button>
             </CardContent>
           </Card>
         </>
