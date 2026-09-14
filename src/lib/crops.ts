@@ -304,7 +304,7 @@ export const CROPS: CropInfo[] = [
     ],
     tips: ['As a legume, inoculate seeds with Rhizobium bacteria for free nitrogen — ask at agro-input stores', 'Succession sow every 3 weeks for continuous harvest', 'Export quality green beans fetch very high prices — research standards for export'],
     commonPests: ['Bean fly', 'Aphids', 'Anthracnose', 'Bean rust'],
-  },,
+  },
   {
     id: 'onion',
     name: 'Onion',
