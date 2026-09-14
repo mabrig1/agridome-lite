@@ -148,3 +148,9 @@ agridome-lite/
 ## License
 
 MIT
+
+## Administrator knowledge base
+
+The dashboard includes administrator sign-in and a searchable, protected knowledge base with 13 guides covering farm operations, greenhouse construction, soil assessment, AI tools, pilot evidence, offline use and support. Access is reserved for `victoryonline1@gmail.com` and requires the owner-configured password.
+
+Run `npm run admin:setup` to generate credentials, then add the generated server secrets to the intended deployment. See [administrator setup and recovery](docs/ADMIN_ACCESS.md).
