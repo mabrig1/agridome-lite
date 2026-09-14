@@ -11,6 +11,8 @@ const KEYS = {
   PILOT_PROFILE_V1: 'agridome_pilot_profile_v1',
   PILOT_BASELINE_V1: 'agridome_pilot_baseline_v1',
   PILOT_OUTCOMES_V1: 'agridome_pilot_outcomes_v1',
+  BUILD_ASSESSMENT_V1: 'agridome_build_assessment_v1',
+  SOIL_ASSESSMENT_V1: 'agridome_soil_assessment_v1',
 } as const
 
 function get<T>(key: string, fallback: T): T {
@@ -101,6 +103,26 @@ export interface PilotBaseline {
   pestLossPercent: number
 }
 
+export interface BuildAssessment {
+  recordedAt: string
+  areaSqm: number
+  cashBudgetNgn: number
+  materials: Record<string, boolean>
+  missingMaterialKeys: string[]
+  hazardFound: boolean
+  feasibility: 'zero-cash' | 'near-zero' | 'more-materials' | 'unsafe'
+}
+
+export interface SoilAssessment {
+  recordedAt: string
+  drainsWell: boolean
+  knownDisease: boolean
+  suspectedContamination: boolean
+  tested: boolean
+  matureOrganicMatter: boolean
+  status: 'ready' | 'soil-check' | 'treatment-required' | 'drainage-required' | 'expert-review'
+}
+
 export interface PilotWeeklyOutcome {
   id: string
   participantCode: string
@@ -153,6 +175,11 @@ export const storage = {
 
   getSettings: () => get<AppSettings>(KEYS.SETTINGS, { language: 'en' }),
   saveSettings: (settings: AppSettings) => set(KEYS.SETTINGS, settings),
+
+  getBuildAssessment: () => get<BuildAssessment | null>(KEYS.BUILD_ASSESSMENT_V1, null),
+  saveBuildAssessment: (assessment: BuildAssessment) => set(KEYS.BUILD_ASSESSMENT_V1, assessment),
+  getSoilAssessment: () => get<SoilAssessment | null>(KEYS.SOIL_ASSESSMENT_V1, null),
+  saveSoilAssessment: (assessment: SoilAssessment) => set(KEYS.SOIL_ASSESSMENT_V1, assessment),
 
   getPilotProfile: () => get<PilotProfile | null>(KEYS.PILOT_PROFILE_V1, null),
   savePilotProfile: (profile: PilotProfile) => set(KEYS.PILOT_PROFILE_V1, profile),
