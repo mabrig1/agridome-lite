@@ -196,5 +196,7 @@ export const storage = {
     localStorage.removeItem(KEYS.PILOT_PROFILE_V1)
     localStorage.removeItem(KEYS.PILOT_BASELINE_V1)
     localStorage.removeItem(KEYS.PILOT_OUTCOMES_V1)
+    localStorage.removeItem(KEYS.BUILD_ASSESSMENT_V1)
+    localStorage.removeItem(KEYS.SOIL_ASSESSMENT_V1)
   },
 }
