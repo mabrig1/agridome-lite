@@ -2,7 +2,7 @@
 
 import { Tab } from '@/lib/navigation'
 import { cn } from '@/lib/utils'
-import { BarChart2, Bug, ClipboardCheck, LayoutDashboard, Leaf, MessageCircle, Thermometer } from 'lucide-react'
+import { BarChart2, Bug, ClipboardCheck, Hammer, LayoutDashboard, Leaf, MessageCircle, Thermometer } from 'lucide-react'
 
 const tabs = [
   { id: 'command' as Tab, label: 'Farm', icon: LayoutDashboard },
@@ -12,6 +12,7 @@ const tabs = [
   { id: 'yield' as Tab, label: 'Yield', icon: BarChart2 },
   { id: 'chat' as Tab, label: 'Advisor', icon: MessageCircle },
   { id: 'pilot' as Tab, label: 'Pilot', icon: ClipboardCheck },
+  { id: 'build' as Tab, label: 'Build', icon: Hammer },
 ]
 
 interface NavigationProps {

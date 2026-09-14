@@ -105,7 +105,20 @@ export default function PilotCoordinatorPage() {
             <Metric label="Total harvest" value={`${summary.totalHarvestKg.toFixed(1)} kg`} />
             <Metric label="Net recorded income" value={`₦${Math.round(summary.grossIncomeNgn - summary.totalCostsNgn).toLocaleString()}`} />
             <Metric label="Average pest loss" value={`${summary.averagePestLossPercent.toFixed(1)}%`} />
+            <Metric label="Zero-cash feasible" value={String(summary.zeroCashFeasibleCount)} />
+            <Metric label="Near-zero feasible" value={String(summary.nearZeroFeasibleCount)} />
+            <Metric label="Unsafe build flags" value={String(summary.unsafeBuildCount)} />
+            <Metric label="Soil ready" value={String(summary.soilReadyCount)} />
+            <Metric label="Soil escalations" value={String(summary.soilEscalationCount)} />
           </section>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Thesis intervention indicators</CardTitle></CardHeader>
+            <CardContent className="text-xs text-muted-foreground space-y-2">
+              <p>Zero-cash and near-zero counts come from the farmer's saved Build Assistant assessment. Unsafe-material flags are kept visible rather than reclassified as success.</p>
+              <p>Soil readiness is recorded separately from build feasibility. Drainage, known disease and suspected contamination can trigger treatment or expert-review escalation before planting.</p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Exploratory baseline comparison</CardTitle></CardHeader>

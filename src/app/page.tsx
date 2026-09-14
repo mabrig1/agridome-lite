@@ -10,6 +10,7 @@ import YieldPredictor from '@/components/YieldPredictor'
 import ChatAdvisor from '@/components/ChatAdvisor'
 import PilotTracker from '@/components/PilotTracker'
 import OfflineBanner from '@/components/OfflineBanner'
+import ThesisBuildAssistant from '@/components/ThesisBuildAssistant'
 import { Tab } from '@/lib/navigation'
 
 export default function Home() {
@@ -53,6 +54,7 @@ export default function Home() {
         {activeTab === 'yield' && <YieldPredictor />}
         {activeTab === 'chat' && <ChatAdvisor isOnline={isOnline} />}
         {activeTab === 'pilot' && <PilotTracker />}
+        {activeTab === 'build' && <ThesisBuildAssistant />}
       </main>
 
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />

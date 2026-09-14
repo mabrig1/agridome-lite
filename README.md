@@ -11,11 +11,13 @@ AgriDome Lite is a Progressive Web App (PWA) built with Next.js, Tailwind and Fa
 | **Farm Command Center** | Farm readiness score, data-quality score, stale-reading detection, priority actions and quick access to all farm tools |
 | **Climate Tracker** | Manual temperature, humidity, CO₂ and light logs with history charts and corrective guidance |
 | **Climate-fit Crop Ranking** | Ranks supported crops against the latest temperature and humidity reading with transparent limitations |
-| **Crop Guide** | 10 priority crops with growth stages, tasks, watering guidance and common pest references |
+| **Crop Guide** | 12 priority crops with growth stages, tasks, watering guidance and common pest references |
 | **Crop Health Scanner** | Photo-based AI field triage with observation, likely causes, severity, next actions and escalation guidance |
 | **Yield Predictor** | Area/plant-count based yield and revenue planning |
 | **AI Advisor** | Nigerian farming context with English, Igbo, Hausa and Yoruba support |
 | **Farm Profile** | Location and growing-area setup ready for future weather, market and extension integrations |
+| **Zero-Cash Build Assistant** | Audits owned/recovered/donated materials, rejects unsafe waste, identifies missing components and adapts the build plan to a farmer's cash ceiling |
+| **Soil Health & Treatment Assistant** | Pre-plant drainage, contamination and disease-history screening with conservative treatment and escalation rules |
 | **Offline Mode** | Core farm records remain on-device and usable without internet |
 | **Pilot Evidence** | Consent, pseudonymous baseline, weekly outcomes, progress metrics, de-identified JSON/CSV export and local coordinator analysis |
 | **CI Verification** | GitHub Actions validates the Next.js build and FastAPI backend on feature branches and pull requests |
@@ -102,6 +104,8 @@ The backend health endpoint works even when the AI key is not configured, which 
 
 The included `backend/render.yaml` can be used as a Render Blueprint starting point.
 
+The thesis-derived field toolkit adds a **resource audit → safe-material gate → adaptive build → soil-readiness → planting** workflow. “Zero cash” is defined as ₦0 new-material outlay where safe components are already owned, recovered, donated or exchanged; labour, transport and opportunity cost remain real economic costs. The soil assistant deliberately avoids automatic chemical dosing and escalates suspected contamination or severe recurring disease.
+
 ## Language Support
 
 The AI advisor supports:
@@ -112,7 +116,7 @@ The AI advisor supports:
 
 ## Crops Covered
 
-Tomato, bell pepper, cucumber, lettuce, spinach, okra, beetroot, Irish potato, strawberry and green beans.
+Tomato, bell pepper, cucumber, lettuce, spinach, okra, beetroot, Irish potato, strawberry, green beans, **onion and cabbage**. Onion, cabbage and lettuce are the thesis focal crops.
 
 Crop-fit ranking is based only on the app's stored temperature and humidity targets. It does **not** replace soil, water, variety, disease-history or market assessment.
 

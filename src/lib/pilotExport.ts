@@ -1,4 +1,4 @@
-import { PilotBaseline, PilotProfile, PilotWeeklyOutcome } from '@/lib/storage'
+import { BuildAssessment, PilotBaseline, PilotProfile, PilotWeeklyOutcome, SoilAssessment } from '@/lib/storage'
 
 export interface PilotExportBundle {
   schemaVersion: 1
@@ -8,6 +8,8 @@ export interface PilotExportBundle {
   }
   baseline: PilotBaseline | null
   outcomes: PilotWeeklyOutcome[]
+  buildAssessment: BuildAssessment | null
+  soilAssessment: SoilAssessment | null
 }
 
 export interface PilotAggregateSummary {
@@ -24,9 +26,14 @@ export interface PilotAggregateSummary {
   averageHarvestChangePercent: number | null
   averageIncomeChangePercent: number | null
   averagePestLossChangePoints: number | null
+  zeroCashFeasibleCount: number
+  nearZeroFeasibleCount: number
+  unsafeBuildCount: number
+  soilReadyCount: number
+  soilEscalationCount: number
 }
 
-function escapeCsv(value: string | number) {
+function escapeCsv(value: string | number | boolean) {
   return `"${String(value).replaceAll('"', '""')}"`
 }
 
@@ -44,6 +51,8 @@ export function createPilotBundle(
   profile: PilotProfile,
   baseline: PilotBaseline | null,
   outcomes: PilotWeeklyOutcome[],
+  buildAssessment: BuildAssessment | null = null,
+  soilAssessment: SoilAssessment | null = null,
 ): PilotExportBundle {
   return {
     schemaVersion: 1,
@@ -51,11 +60,13 @@ export function createPilotBundle(
     participant: { participantCode: profile.participantCode },
     baseline,
     outcomes,
+    buildAssessment,
+    soilAssessment,
   }
 }
 
-export function downloadPilotJson(profile: PilotProfile, baseline: PilotBaseline | null, outcomes: PilotWeeklyOutcome[]) {
-  const bundle = createPilotBundle(profile, baseline, outcomes)
+export function downloadPilotJson(profile: PilotProfile, baseline: PilotBaseline | null, outcomes: PilotWeeklyOutcome[], buildAssessment: BuildAssessment | null = null, soilAssessment: SoilAssessment | null = null) {
+  const bundle = createPilotBundle(profile, baseline, outcomes, buildAssessment, soilAssessment)
   downloadText(
     `agridome-pilot-${profile.participantCode}.json`,
     JSON.stringify(bundle, null, 2),
@@ -69,6 +80,8 @@ export function bundlesToCsv(bundles: PilotExportBundle[]) {
     'baseline_weekly_harvest_kg', 'baseline_weekly_income_ngn', 'baseline_pest_loss_percent',
     'week_start', 'crop', 'harvest_kg', 'income_ngn', 'costs_ngn',
     'pest_loss_percent', 'app_used_days', 'notes',
+    'build_feasibility', 'build_area_sqm', 'build_cash_budget_ngn', 'build_missing_materials', 'build_hazard_found',
+    'soil_status', 'soil_drains_well', 'soil_known_disease', 'soil_suspected_contamination', 'soil_tested',
   ]
 
   const rows = bundles.flatMap(bundle => bundle.outcomes.map(outcome => {
@@ -89,14 +102,24 @@ export function bundlesToCsv(bundles: PilotExportBundle[]) {
       outcome.pestLossPercent,
       outcome.appUsedDays,
       outcome.notes ?? '',
+      bundle.buildAssessment?.feasibility ?? '',
+      bundle.buildAssessment?.areaSqm ?? '',
+      bundle.buildAssessment?.cashBudgetNgn ?? '',
+      bundle.buildAssessment?.missingMaterialKeys.join('|') ?? '',
+      bundle.buildAssessment?.hazardFound ?? '',
+      bundle.soilAssessment?.status ?? '',
+      bundle.soilAssessment?.drainsWell ?? '',
+      bundle.soilAssessment?.knownDisease ?? '',
+      bundle.soilAssessment?.suspectedContamination ?? '',
+      bundle.soilAssessment?.tested ?? '',
     ].map(escapeCsv).join(',')
   }))
 
   return [headers.join(','), ...rows].join('\n')
 }
 
-export function downloadPilotCsv(profile: PilotProfile, baseline: PilotBaseline | null, outcomes: PilotWeeklyOutcome[]) {
-  const bundle = createPilotBundle(profile, baseline, outcomes)
+export function downloadPilotCsv(profile: PilotProfile, baseline: PilotBaseline | null, outcomes: PilotWeeklyOutcome[], buildAssessment: BuildAssessment | null = null, soilAssessment: SoilAssessment | null = null) {
+  const bundle = createPilotBundle(profile, baseline, outcomes, buildAssessment, soilAssessment)
   downloadText(
     `agridome-pilot-${profile.participantCode}.csv`,
     bundlesToCsv([bundle]),
@@ -148,7 +171,11 @@ export function parsePilotBundle(value: unknown): PilotExportBundle | null {
     || typeof baseline.pestLossPercent !== 'number' || !Number.isFinite(baseline.pestLossPercent) || baseline.pestLossPercent < 0 || baseline.pestLossPercent > 100
   )) return null
 
-  return value as unknown as PilotExportBundle
+  return {
+    ...(value as unknown as PilotExportBundle),
+    buildAssessment: isObject(value.buildAssessment) ? value.buildAssessment as unknown as BuildAssessment : null,
+    soilAssessment: isObject(value.soilAssessment) ? value.soilAssessment as unknown as SoilAssessment : null,
+  }
 }
 
 function percentChange(current: number, baseline: number) {
@@ -191,5 +218,10 @@ export function summarizePilot(bundles: PilotExportBundle[]): PilotAggregateSumm
     averageHarvestChangePercent: average(harvestChanges),
     averageIncomeChangePercent: average(incomeChanges),
     averagePestLossChangePoints: average(pestChanges),
+    zeroCashFeasibleCount: bundles.filter(bundle => bundle.buildAssessment?.feasibility === 'zero-cash').length,
+    nearZeroFeasibleCount: bundles.filter(bundle => bundle.buildAssessment?.feasibility === 'near-zero').length,
+    unsafeBuildCount: bundles.filter(bundle => bundle.buildAssessment?.feasibility === 'unsafe').length,
+    soilReadyCount: bundles.filter(bundle => bundle.soilAssessment?.status === 'ready').length,
+    soilEscalationCount: bundles.filter(bundle => ['expert-review', 'drainage-required', 'treatment-required'].includes(bundle.soilAssessment?.status ?? '')).length,
   }
 }
