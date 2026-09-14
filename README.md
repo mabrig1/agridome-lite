@@ -104,8 +104,6 @@ The backend health endpoint works even when the AI key is not configured, which 
 
 The included `backend/render.yaml` can be used as a Render Blueprint starting point.
 
-## Language Support
-
 The thesis-derived field toolkit adds a **resource audit → safe-material gate → adaptive build → soil-readiness → planting** workflow. “Zero cash” is defined as ₦0 new-material outlay where safe components are already owned, recovered, donated or exchanged; labour, transport and opportunity cost remain real economic costs. The soil assistant deliberately avoids automatic chemical dosing and escalates suspected contamination or severe recurring disease.
 
 ## Language Support
