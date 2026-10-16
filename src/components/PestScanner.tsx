@@ -35,6 +35,7 @@ export default function PestScanner({ isOnline }: PestScannerProps) {
   const [imageBase64, setImageBase64] = useState<string | null>(null)
   const [selectedCrop, setSelectedCrop] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+  const [photoConsent, setPhotoConsent] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [expandedScan, setExpandedScan] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -45,15 +46,25 @@ export default function PestScanner({ isOnline }: PestScannerProps) {
   }, [])
 
   const handleFile = useCallback(async (file: File) => {
-    const url = URL.createObjectURL(file)
-    setPreview(url)
-    const b64 = await fileToBase64(file)
-    setImageBase64(b64)
+    if (file.size > 6000000) { setResult('Please select a photo smaller than 6 MB.'); return }
+    setPhotoConsent(false)
+    const bitmap = await createImageBitmap(file)
+    const canvas = document.createElement('canvas')
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) { bitmap.close(); setResult('Image processing is unavailable.'); return }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const sanitized = canvas.toDataURL('image/jpeg', 0.82)
+    setPreview(sanitized)
+    setImageBase64(sanitized.split(',')[1])
     setResult(null)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
-    if (!imageBase64) return
+    if (!imageBase64 || !photoConsent) return
     setAnalyzing(true)
     setResult(null)
 
@@ -85,9 +96,10 @@ export default function PestScanner({ isOnline }: PestScannerProps) {
     } finally {
       setAnalyzing(false)
     }
-  }, [imageBase64, selectedCrop])
+  }, [imageBase64, selectedCrop, photoConsent])
 
   const clearImage = () => {
+    setPhotoConsent(false)
     setPreview(null)
     setImageBase64(null)
     setResult(null)
@@ -158,9 +170,10 @@ export default function PestScanner({ isOnline }: PestScannerProps) {
                 </select>
               </div>
 
+              <label className="flex gap-2 text-xs leading-relaxed"><input type="checkbox" checked={photoConsent} onChange={e => setPhotoConsent(e.target.checked)} aria-label="Consent to send crop photo for AI analysis" /><span>I agree to send this processed crop photo to the AI provider for analysis. The photo is redrawn to remove embedded metadata. Avoid including faces or personal information. <a href="/privacy" className="underline">Privacy notice</a>.</span></label>
               <Button
                 onClick={handleAnalyze}
-                disabled={analyzing || !isOnline}
+                disabled={analyzing || !isOnline || !photoConsent}
                 variant="gold"
                 className="w-full gap-2"
               >
