@@ -4,15 +4,27 @@ import os
 from typing import Optional
 
 import anthropic
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="AgriDome Lite API", version="1.1.0")
+app = FastAPI(title="AgriDome Lite API", version="1.1.1")
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"detail": "Too many requests"})
 
 allowed_origins = [
     origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
     if origin.strip()
 ]
 allow_credentials = "*" not in allowed_origins
@@ -90,7 +102,8 @@ def health():
 
 
 @app.post("/api/chat")
-def chat(req: ChatRequest):
+@limiter.limit("12/minute")
+def chat(request: Request, req: ChatRequest):
     system = NIGERIAN_FARMING_CONTEXT + "\n\n" + req.language_instruction
 
     messages = []
@@ -110,7 +123,7 @@ def chat(req: ChatRequest):
     try:
         response = get_client().messages.create(
             model=AI_MODEL,
-            max_tokens=1024,
+            max_tokens=700,
             system=system,
             messages=messages,
         )
@@ -122,7 +135,8 @@ def chat(req: ChatRequest):
 
 
 @app.post("/api/pest-scan")
-def pest_scan(req: PestScanRequest):
+@limiter.limit("4/minute")
+def pest_scan(request: Request, req: PestScanRequest):
     crop_ctx = f" Crop context supplied by the farmer: {req.crop_context}." if req.crop_context else ""
     prompt = (
         f"Analyse this crop photo from a Nigerian smallholder farmer.{crop_ctx}\n\n"

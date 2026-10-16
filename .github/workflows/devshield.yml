@@ -1,0 +1,27 @@
+name: DevShield Security Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  devshield:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan changes with MABRIG DevShield
+        uses: mabrig1/mabrig-devshield-ai@v1
+        with:
+          github-token: ${{ github.token }}
+          fail-on: high
+          api-trust: enforce
+          api-trust-fail-on: high
+          legal-compliance: advisory
+          runtime-guard: off

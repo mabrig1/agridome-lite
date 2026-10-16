@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import FarmCommandCenter from '@/components/FarmCommandCenter'
 import ClimateTracker from '@/components/ClimateTracker'
@@ -57,6 +58,7 @@ export default function Home() {
         {activeTab === 'build' && <ThesisBuildAssistant />}
       </main>
 
+      <footer className="px-4 pb-24 pt-4 text-center text-xs text-muted-foreground"><Link href="/privacy" className="underline">Privacy</Link><span className="mx-2">·</span><Link href="/terms" className="underline">Terms</Link></footer>
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   )
